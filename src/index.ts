@@ -36,11 +36,11 @@ export async function init(router: Router): Promise<void> {
             var body;
             var headers;
 
-            if (req.headers['Authorization'] || req.headers['authorization'])
+            if (req.headers['_Authorization'] || req.headers['_authorization'])
                 headers = {
                     'accept': 'application/json',
                     'Content-Type': 'application/json',
-                    'Authorization': req.headers['Authorization'] || req.headers['authorization']
+                    'Authorization': req.headers['_Authorization'] || req.headers['_authorization']
                 };
             else
                 headers = {
