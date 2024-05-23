@@ -1,6 +1,13 @@
-import bodyParser from 'body-parser';
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { Chalk } from 'chalk';
+
+const fetch = require('node-fetch').default;
+//const express = require('express')
+
+const jsonParser =  express.json({ limit: '200mb' });
+
+const API_NOVELAI = 'https://api.novelai.net';
+const IMAGE_NOVELAI = 'https://image.novelai.net';
 
 interface PluginInfo {
     id: string;
@@ -15,40 +22,105 @@ interface Plugin {
 }
 
 const chalk = new Chalk();
-const MODULE_NAME = '[SillyTavern-Example-Plugin]';
+const MODULE_NAME = '[novelai-passthrough]';
 
 /**
  * Initialize the plugin.
  * @param router Express Router
  */
 export async function init(router: Router): Promise<void> {
-    const jsonParser = bodyParser.json();
+    
     // Used to check if the server plugin is running
-    router.post('/probe', (_req, res) => {
-        return res.sendStatus(204);
-    });
-    // Use body-parser to parse the request body
-    router.post('/ping', jsonParser, async (req, res) => {
+    router.get('/*', jsonParser, async (req, res) => {
         try {
-            const { message } = req.body;
-            return res.json({ message: `Pong! ${message}` });
+            var body;
+            var headers;
+
+            if (req.headers['Authorization'] || req.headers['authorization'])
+                headers = {
+                    'accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'Authorization': req.headers['Authorization'] || req.headers['authorization']
+                };
+            else
+                headers = {
+                    'accept': 'application/json',
+                    'Content-Type': 'application/json',
+                };
+
+            var s = JSON.stringify(req.body);
+            if (s !== '{}')
+                body = s;
+
+            const response = await fetch(API_NOVELAI + req.url, {
+                method: 'GET',
+                body: body,
+                headers: headers,
+            });
+    
+            var data;
+            if (response.headers.get('content-type') == 'application/json')
+                data = await response.json();
+            else
+                data = await response.text();
+
+            return res.status(response.status).setHeader('content-type', response.headers.get('content-type')).send(data);
         } catch (error) {
-            console.error(chalk.red(MODULE_NAME), 'Request failed', error);
-            return res.status(500).send('Internal Server Error');
-        }
+            console.log(error);
+            return res.send({ error: true });
+        }        
+    });
+
+    router.post('/*', jsonParser, async (req, res) => {
+        try {
+            var headers;
+            var body = JSON.stringify(req.body);
+
+            if (req.headers['Authorization'] || req.headers['authorization'])
+                headers = {
+                    'accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'Authorization': req.headers['Authorization'] || req.headers['authorization']
+                };
+            else
+                headers = {
+                    'accept': 'application/json',
+                    'Content-Type': 'application/json',
+                };
+
+            if (body === '{}')
+                body = '';
+
+            const response = await fetch(API_NOVELAI + req.url, {
+                method: 'POST',
+                body: body,
+                headers: headers,
+            });
+
+            var data;
+            if (response.headers.get('content-type') == 'application/json')
+                data = await response.json();
+            else
+                data = await response.text();
+
+            return res.status(response.status).setHeader('content-type', response.headers.get('content-type')).send(data);
+        } catch (error) {
+            console.log(error);
+            return res.send({ error: true });
+        }        
     });
 
     console.log(chalk.green(MODULE_NAME), 'Plugin loaded!');
 }
 
 export async function exit(): Promise<void> {
-    console.log(chalk.yellow(MODULE_NAME), 'Plugin exited');
+    //console.log(chalk.yellow(MODULE_NAME), 'Plugin exited');
 }
 
 export const info: PluginInfo = {
-    id: 'example',
-    name: 'Example Plugin',
-    description: 'A simple example plugin for SillyTavern server.',
+    id: 'novelai-passthrough',
+    name: 'NovelAI Passthrough Plugin',
+    description: 'A simple plugin for SillyTavern servers that are not running over SSL to still access the extended NovelAI api via HTTPS.',
 };
 
 const plugin: Plugin = {

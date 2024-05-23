@@ -1,5 +1,5 @@
 {
-    "name": "plugin-template-webpack",
+    "name": "plugin-novelai-passthrough",
     "version": "1.0.0",
     "description": "Example server plugin.",
     "main": "dist/plugin.js",
